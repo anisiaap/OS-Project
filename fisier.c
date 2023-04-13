@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <dirent.h>
 
 void type_menu(struct stat file){
 
@@ -32,113 +33,200 @@ void type_menu(struct stat file){
     }
 
 }
-
-void option_link(char* file_name,struct stat buf, int length, char* option_s){
-    for(int i=1;i<length;i++){
-            if(option_s[i]=='n'){
-                printf("Name of symbolic link: %s\n", file_name);
-            }
-
-            if(option_s[i]=='l'){
-                int retVal = unlink(file_name);
-
-                if(retVal == -1){
-                    perror(strerror(errno));
-                    exit(errno);
-                }
-
-                printf("Symbolic link has been deleted");
-                return;
-            }
-
-            if(option_s[i]=='d'){
-                long size;
-                size = buf.st_size;
-                printf("Size of symbolic link: %ld bytes\n", size);
-            }
-
-            if(option_s[i]=='t'){
-                struct stat buffer2;
-
-                int retVal = stat(file_name, &buffer2);
-                if(retVal == -1){
-                    perror(strerror(errno));
-                    exit(errno);
-                }
-
-                long size;
-                size = buffer2.st_size;
-                printf("Size of target file: %ld bytes\n", size);
-            }
-
-            if(option_s[i]=='a'){
-
-            }
+void accesUser(struct stat buf){
+    if((buf.st_mode & S_IRUSR)!=0){
+        printf("Read - yes\n");
+    }
+    else{
+         printf("Read - no\n");
+    }
+    if((buf.st_mode & S_IWUSR)!=0){
+        printf("Write - yes\n");
+    }
+    else{
+        printf("Write - no\n");
+    }
+    if((buf.st_mode & S_IXUSR)!=0){
+        printf("Exec - yes\n");
+    }
+    else{
+        printf("Exec - no\n");
+    }
+}
+void accesGroup(struct stat buf){
+    if((buf.st_mode & S_IRGRP)!=0){
+        printf("Read - yes\n");
+    }
+    else{
+         printf("Read - no\n");
+    }
+    if((buf.st_mode & S_IWGRP)!=0){
+        printf("Write - yes\n");
+    }
+    else{
+        printf("Write - no\n");
+    }
+    if((buf.st_mode & S_IXGRP)!=0){
+        printf("Exec - yes\n");
+    }
+    else{
+        printf("Exec - no\n");
+    }
+}
+void accesOther(struct stat buf){
+    if((buf.st_mode & S_IROTH)!=0){
+        printf("Read - yes\n");
+    }
+    else{
+         printf("Read - no\n");
+    }
+    if((buf.st_mode & S_IWOTH)!=0){
+        printf("Write - yes\n");
+    }
+    else{
+        printf("Write - no\n");
+    }
+    if((buf.st_mode & S_IXOTH)!=0){
+        printf("Exec - yes\n");
+    }
+    else{
+        printf("Exec - no\n");
     }
 }
 
-void option_dir(char* file_name,struct stat buf, int length, char* option_s){
+void option_link(char* link_name,struct stat buf, int length, char* option_s){
     for(int i=1;i<length;i++){
         if(option_s[i]=='n'){
-            printf("The name is %s\n", file_name);
+            printf("Name of symbolic link: %s\n", link_name);
+        }
+
+        if(option_s[i]=='l'){
+            int retVal = unlink(link_name);
+
+            if(retVal == -1){
+                perror(strerror(errno));
+                exit(errno);
+            }
+
+            printf("Symbolic link has been deleted");
+            return;
+        }
+
+        if(option_s[i]=='d'){
+            long size;
+            size = buf.st_size;
+            printf("Size of symbolic link: %ld bytes\n", size);
+        }
+
+        if(option_s[i]=='t'){
+            struct stat buffer2;
+
+            int retVal = stat(link_name, &buffer2);
+            if(retVal == -1){
+                perror(strerror(errno));
+                exit(errno);
+            }
+
+            long size;
+            size = buffer2.st_size;
+            printf("Size of target file: %ld bytes\n", size);
+        }
+
+        if(option_s[i]=='a'){
+            printf("Access rights:\n");
+            printf("\nUser:\n\n");
+            accesUser(buf);
+            printf("\nGroup:\n\n");
+            accesGroup(buf);
+            printf("\nOther:\n\n");
+            accesOther(buf);
+        }
+    }
+}
+
+void option_dir(char* dir_name,struct stat buf, int length, char* option_s){
+    for(int i=1;i<length;i++){
+        if(option_s[i]=='n'){
+            printf("Name of directory: %s\n", dir_name);
         }
         if(option_s[i]=='d'){
-            printf("The name is %s\n", file_name);
+            long size;
+            size = buf.st_size;
+            printf("Size of directory: %ld bytes\n", size);
         }
         if(option_s[i]=='c'){
-             printf("The name is %s\n", file_name);
+            int file_count = 0;
+            DIR * dirp;
+            struct dirent * entry;
+
+            dirp = opendir(dir_name); /* There should be error handling after this */
+            while ((entry = readdir(dirp)) != NULL){
+                if (strstr(entry->d_name,".c")!=0){ /* If the entry is a regular file */
+                    file_count++;
+                }
+            }
+            closedir(dirp);
+            printf("The number of files with .c extension %s\n", file_count);
         }
         if(option_s[i]=='a'){
-             printf("The name is %s\n", file_name);
+            printf("Access rights:\n");
+            printf("\nUser:\n\n");
+            accesUser(buf);
+            printf("\nGroup:\n\n");
+            accesGroup(buf);
+            printf("\nOther:\n\n");
+            accesOther(buf);
         }
     }
 }
 void option_reg(char* file_name,struct stat buf, int length, char* option_s){
     for(int i=1;i<length;i++){
-            if(option_s[i]=='n'){
-                printf("Name of file: %s\n", file_name);
+        if(option_s[i]=='n'){
+            printf("Name of file: %s\n", file_name);
+        }
+
+        if(option_s[i]=='d'){
+            long size;
+            size = buf.st_size;
+            printf("Size of file: %ld bytes\n", size);
+        }
+
+        if(option_s[i]=='h'){
+            int count;
+            count = buf.st_nlink;
+            printf("Hard link count:%d\n", count);
+        }
+
+        if(option_s[i]=='m'){
+            struct timespec ts;
+            timespec_get(&ts, buf.st_mtime);
+            printf("Last modification time: %ld.%.9ld\n", ts.tv_sec, ts.tv_nsec);
+        }
+
+        if(option_s[i]=='a'){
+            printf("Access rights:\n");
+            printf("\nUser:\n\n");
+            accesUser(buf);
+            printf("\nGroup:\n\n");
+            accesGroup(buf);
+            printf("\nOther:\n\n");
+            accesOther(buf);
+        }
+
+        if(option_s[i]=='l'){
+            char link_name[1024];
+
+            printf("Please give the link name: \nSTANDARD INPUT:");
+            scanf("%s", link_name);
+
+            int retVal = symlink(file_name, link_name);
+            if(retVal == -1){
+                perror(strerror(errno));
+                exit(errno);
             }
 
-            if(option_s[i]=='d'){
-                long size;
-                size = buf.st_size;
-                printf("Size of file: %ld bytes\n", size);
-            }
-
-            if(option_s[i]=='h'){
-                int count;
-                count = buf.st_nlink;
-                printf("Hard link count:%d\n", count);
-            }
-
-            if(option_s[i]=='m'){
-                struct timespec ts;
-                timespec_get(&ts, buf.st_mtime);
-                printf("Last modification time: %ld.%.9ld\n", ts.tv_sec, ts.tv_nsec);
-            }
-
-            if(option_s[i]=='a'){
-                printf("Access rights:\n");
-                printf("User:\n");
-                // if(buf.st_mode & S_IRUSR){
-                        
-                //     }
-            }
-
-            if(option_s[i]=='l'){
-                char link_name[1024];
-
-                printf("Please give the link name: \nSTANDARD INPUT:");
-                scanf("%s", link_name);
-
-                int retVal = symlink(file_name, link_name);
-                if(retVal == -1){
-                    perror(strerror(errno));
-                    exit(errno);
-                }
-
-                printf("STANDARD OUTPUT: Link has been created!\n");
-            }
+            printf("STANDARD OUTPUT: Link has been created!\n");
+        }
     }
 }
 
@@ -177,8 +265,6 @@ void option(struct stat buf, char *filename){
         option_reg(filename, buf, length, option_s);
         return;
     }
-        
-    
 
     if(S_ISDIR(buf.st_mode)){
         //check option string for links file
