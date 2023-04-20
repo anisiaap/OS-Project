@@ -94,14 +94,14 @@ void accesOther(struct stat buf){
     }
 }
 
-void option_link(char* link_name,struct stat buf, int length, char* option_s){
+void option_link(char* link_path,struct stat buf, int length, char* option_s){
     for(int i=1;i<length;i++){
         if(option_s[i]=='n'){
-            printf("Name of symbolic link: %s\n", link_name);
+            printf("Name of symbolic link: %s\n", basename(link_path));
         }
 
         if(option_s[i]=='l'){
-            int retVal = unlink(link_name);
+            int retVal = unlink(link_path);
 
             if(retVal == -1){
                 perror(strerror(errno));
@@ -121,7 +121,7 @@ void option_link(char* link_name,struct stat buf, int length, char* option_s){
         if(option_s[i]=='t'){
             struct stat buffer2;
 
-            int retVal = stat(link_name, &buffer2);
+            int retVal = stat(link_path, &buffer2);
             if(retVal == -1){
                 perror(strerror(errno));
                 exit(errno);
@@ -144,10 +144,10 @@ void option_link(char* link_name,struct stat buf, int length, char* option_s){
     }
 }
 
-void option_dir(char* dir_name,struct stat buf, int length, char* option_s){
+void option_dir(char* dir_path,struct stat buf, int length, char* option_s){
     for(int i=1;i<length;i++){
         if(option_s[i]=='n'){
-            printf("Name of directory: %s\n", dir_name);
+            printf("Name of directory: %s\n", basename(dir_path));
         }
         if(option_s[i]=='d'){
             long size;
@@ -159,7 +159,7 @@ void option_dir(char* dir_name,struct stat buf, int length, char* option_s){
             DIR * dirp;
             struct dirent * entry;
 
-            dirp = opendir(dir_name); /* There should be error handling after this */
+            dirp = opendir(dir_path); /* There should be error handling after this */
             while ((entry = readdir(dirp)) != NULL){
                 if (strstr(entry->d_name,".c")!=0){ /* If the entry is a regular file */
                     file_count++;
@@ -179,10 +179,10 @@ void option_dir(char* dir_name,struct stat buf, int length, char* option_s){
         }
     }
 }
-void option_reg(char* file_name,struct stat buf, int length, char* option_s){
+void option_reg(char* filepath,struct stat buf, int length, char* option_s){
     for(int i=1;i<length;i++){
         if(option_s[i]=='n'){
-            printf("Name of file: %s\n", file_name);
+            printf("Name of file: %s\n", basename(filepath));
         }
 
         if(option_s[i]=='d'){
@@ -219,7 +219,7 @@ void option_reg(char* file_name,struct stat buf, int length, char* option_s){
             printf("Please give the link name: \nSTANDARD INPUT:");
             scanf("%s", link_name);
 
-            int retVal = symlink(file_name, link_name);
+            int retVal = symlink(filepath, link_name);
             if(retVal == -1){
                 perror(strerror(errno));
                 exit(errno);
@@ -231,7 +231,7 @@ void option_reg(char* file_name,struct stat buf, int length, char* option_s){
 }
 
 
-void option(struct stat buf, char *filename){
+void option(struct stat buf, char *filepath){
     char option_s[10];
     int length;
 
@@ -262,7 +262,7 @@ void option(struct stat buf, char *filename){
                 exit(-1);
             }
         }
-        option_reg(filename, buf, length, option_s);
+        option_reg(filepath, buf, length, option_s);
         return;
     }
 
@@ -279,7 +279,7 @@ void option(struct stat buf, char *filename){
                 exit(-1);
             }
         }
-        option_dir(filename, buf, length, option_s);
+        option_dir(filepath, buf, length, option_s);
         return;
     }
 
@@ -296,35 +296,37 @@ void option(struct stat buf, char *filename){
                 exit(-1);
             }
         }
-        option_link(filename, buf, length, option_s);
+        option_link(filepath, buf, length, option_s);
         return;
     }
 }
 
 int main(int argc, char* argv[]){
     
-    if(argc!=2){
-        printf("not 2 argc\n");
+    if(argc<2){
+        printf("not enough argcs\n");
         exit(-1);
     }
-    //get and print name of file
-    char filename[1024];
-    strcpy(filename, argv[1]);
-    printf("%s - ", filename);
-    
-    //use lstat on file and print file type
-    struct stat buf;
-    int check = lstat(filename, &buf);
-    if(check == -1){
-        perror(strerror(errno));
-        exit(errno);
-    }
-    
-    //print Menu and type for file type
-    type_menu(buf);
+    for(int i = 1; i<argc; i++){
+        //get and print name of file
+        char filepath[1024];
+        strcpy(filepath, argv[i]);
+        printf("%s - ", filepath);
 
-    //input of the desired options
-    option(buf, filename);
+        //use lstat on file and print file type
+        struct stat buf;
+        int check = lstat(filepath, &buf);
+        if(check == -1){
+            perror(strerror(errno));
+            exit(errno);
+        }
+
+        //print Menu and type for file type
+        type_menu(buf);
+
+        //input of the desired options
+        option(buf, filepath);
+    }
 
     return 0;
 }
