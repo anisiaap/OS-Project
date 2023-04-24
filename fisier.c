@@ -7,7 +7,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <dirent.h>
-
+#include <libgen.h>
 void type_menu(struct stat file){
 
     //check POSIX flags
@@ -166,7 +166,7 @@ void option_dir(char* dir_path,struct stat buf, int length, char* option_s){
                 }
             }
             closedir(dirp);
-            printf("The number of files with .c extension %s\n", file_count);
+            printf("The number of files with .c extension %c\n", file_count);
         }
         if(option_s[i]=='a'){
             printf("Access rights:\n");
@@ -237,14 +237,14 @@ void option(struct stat buf, char *filepath){
 
     printf("\nPlease enter your options!\n\nSTANDARD INPUT:");
     if(scanf("%s", option_s) == 0){
-        printf("Wrong input\n");
+        printf("Wrong input, not a valid option\n");
         exit(-1);
     }
     printf("\n");
     length = strlen(option_s);
 
     if(option_s[0]!='-'){
-        printf("Wrong input\n");
+        printf("Wrong input, it should start with '-'\n");
         exit(-1);
     }
 
@@ -258,7 +258,7 @@ void option(struct stat buf, char *filepath){
                */
             }
             else{
-                printf("Wrong input\n");
+                printf("Wrong input, not a valid option\n");
                 exit(-1);
             }
         }
@@ -275,7 +275,7 @@ void option(struct stat buf, char *filepath){
                */
             }
             else{
-                printf("Wrong input\n");
+                printf("Wrong input, not a valid option\n");
                 exit(-1);
             }
         }
@@ -292,7 +292,7 @@ void option(struct stat buf, char *filepath){
                */
             }
             else{
-                printf("Wrong input\n");
+                printf("Wrong input, not a valid option\n");
                 exit(-1);
             }
         }
@@ -311,7 +311,7 @@ int main(int argc, char* argv[]){
         //get and print name of file
         char filepath[1024];
         strcpy(filepath, argv[i]);
-        printf("%s - ", filepath);
+        printf("%s - ", basename(filepath));
 
         //use lstat on file and print file type
         struct stat buf;
