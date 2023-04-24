@@ -1,4 +1,4 @@
-*.txt
-testdir
-*.out
-*.store
+*.txt/
+testdir/
+*.out/
+.DS_store
