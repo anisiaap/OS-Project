@@ -257,8 +257,6 @@ void option_reg(char *filepath, struct stat buf, int length, char *option_s)
             if (option_s[i] == 'd')
             {
                 long size;
-                {
-                }
                 size = buf.st_size;
                 printf("Size of file: %ld bytes\n", size);
             }
