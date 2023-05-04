@@ -8,7 +8,11 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <libgen.h>
-
+/**
+ * global variables
+ */
+char option_string_ac[10];
+int lengthOfOptionString_u;
 /**
  * function used to print the menu for each type of file, acc to POSIX flags
  */
@@ -246,7 +250,6 @@ void option_reg(char *filepath, struct stat buf, int length, char *option_s)
     pid = fork();
     if (pid == 0)
     {
-
         for (int i = 1; i < length; i++)
         {
             if (option_s[i] == 'n')
@@ -299,14 +302,63 @@ void option_reg(char *filepath, struct stat buf, int length, char *option_s)
                     perror(strerror(errno));
                     exit(errno);
                 }
-
                 printf("STANDARD OUTPUT: Link has been created!\n");
             }
         }
         exit(8);
     }
 }
+void readOptions()
+{
+    printf("\nPlease enter your options!\n\nSTANDARD INPUT:");
+    if (scanf("%s", option_string_ac) == 0)
+    {
+        printf("Wrong input, not a valid option\n");
+        exit(-1);
+    }
+    printf("\n");
+    lengthOfOptionString_u = strlen(option_string_ac);
 
+    if (option_string_ac[0] != '-')
+    {
+        printf("Wrong input, it should start with '-'\n");
+        exit(-1);
+    }
+}
+void checkOptionStringReg()
+{
+    for (int i = 1; i < lengthOfOptionString_u; i++)
+    {
+        if ((option_string_ac[i] != 'n') && (option_string_ac[i] != 'd') && (option_string_ac[i] != 'h') && (option_string_ac[i] != 'm') && (option_string_ac[i] != 'a') && (option_string_ac[i] != 'l'))
+        {
+            printf("Wrong input, not a valid option\n");
+            exit(-1);
+        }
+    }
+}
+void checkOptionStringDir()
+{
+    for (int i = 1; i < lengthOfOptionString_u; i++)
+    {
+        if ((option_string_ac[i] != 'n') && (option_string_ac[i] != 'd') && (option_string_ac[i] != 'c') && (option_string_ac[i] != 'a'))
+        {
+
+            printf("Wrong input, not a valid option\n");
+            exit(-1);
+        }
+    }
+}
+void checkOptionStringLink()
+{
+    for (int i = 1; i < lengthOfOptionString_u; i++)
+    {
+        if ((option_string_ac[i] != 'n') && (option_string_ac[i] != 'd') && (option_string_ac[i] != 't') && (option_string_ac[i] != 'a') && (option_string_ac[i] != 'l'))
+        {
+            printf("Wrong input, not a valid option\n");
+            exit(-1);
+        }
+    }
+}
 /**
  * function used to check the list of commands
  * and
@@ -315,45 +367,13 @@ void option_reg(char *filepath, struct stat buf, int length, char *option_s)
  */
 void option(struct stat buf, char *filepath)
 {
-    char option_s[10];
-    int length;
-
-    printf("\nPlease enter your options!\n\nSTANDARD INPUT:");
-    if (scanf("%s", option_s) == 0)
-    {
-        printf("Wrong input, not a valid option\n");
-        exit(-1);
-    }
-    printf("\n");
-    length = strlen(option_s);
-
-    if (option_s[0] != '-')
-    {
-        printf("Wrong input, it should start with '-'\n");
-        exit(-1);
-    }
-
     /**
      * check option string for regular files
      */
     if (S_ISREG(buf.st_mode))
     {
-
-        for (int i = 1; i < length; i++)
-        {
-            if ((option_s[i] == 'n') || (option_s[i] == 'd') || (option_s[i] == 'h') || (option_s[i] == 'm') || (option_s[i] == 'a') || (option_s[i] == 'l'))
-            {
-                /**
-                 * do nothing
-                 */
-            }
-            else
-            {
-                printf("Wrong input, not a valid option\n");
-                exit(-1);
-            }
-        }
-        option_reg(filepath, buf, length, option_s);
+        checkOptionStringReg();
+        option_reg(filepath, buf, lengthOfOptionString_u, option_string_ac);
         return;
     }
     /**
@@ -361,22 +381,8 @@ void option(struct stat buf, char *filepath)
      */
     if (S_ISDIR(buf.st_mode))
     {
-
-        for (int i = 1; i < length; i++)
-        {
-            if ((option_s[i] == 'n') || (option_s[i] == 'd') || (option_s[i] == 'c') || (option_s[i] == 'a'))
-            {
-                /**
-                 * do nothing
-                 */
-            }
-            else
-            {
-                printf("Wrong input, not a valid option\n");
-                exit(-1);
-            }
-        }
-        option_dir(filepath, buf, length, option_s);
+        checkOptionStringDir();
+        option_dir(filepath, buf, lengthOfOptionString_u, option_string_ac);
         return;
     }
     /**
@@ -384,21 +390,8 @@ void option(struct stat buf, char *filepath)
      */
     if (S_ISLNK(buf.st_mode))
     {
-        for (int i = 1; i < length; i++)
-        {
-            if ((option_s[i] == 'n') || (option_s[i] == 'd') || (option_s[i] == 't') || (option_s[i] == 'a') || (option_s[i] == 'l'))
-            {
-                /**
-                 * do nothing
-                 */
-            }
-            else
-            {
-                printf("Wrong input, not a valid option\n");
-                exit(-1);
-            }
-        }
-        option_link(filepath, buf, length, option_s);
+        checkOptionStringLink();
+        option_link(filepath, buf, lengthOfOptionString_u, option_string_ac);
         return;
     }
 }
@@ -437,9 +430,7 @@ int main(int argc, char *argv[])
         }
         type_menu(buf);
         option(buf, filepath);
-    }
-    for (int i = 1; i < argc; i++)
-    {
+
         if (pid > 0)
         {
             printf("this is the parent process\n");
