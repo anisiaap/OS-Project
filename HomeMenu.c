@@ -6,13 +6,40 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-#include <dirent.h>
 #include <libgen.h>
+#include <dirent.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 /**
  * global variables
  */
 char option_string_ac[10];
 int lengthOfOptionString_u;
+pid_t pid, w;
+pid_t pid2, w2;
+int wstatus, wstatus2;
+int errors = 0, warnings = 0, score = 0;
+int pfd[2];
+/**
+ * wait for all children for the parent process
+ */
+void wait_kids()
+{
+    printf("this is the parent process\n");
+
+    for (int i = 1; i <= 2; i++)
+    {
+        w = wait(&wstatus);
+        if (WIFEXITED(wstatus))
+        {
+            printf(" process terminated ok with pid %d, exited, status = %d\n", w, WEXITSTATUS(wstatus));
+        }
+        else
+        {
+            printf(" process terminated not ok with pid %d, exited, status = %d\n", w, WEXITSTATUS(wstatus));
+        }
+    }
+}
 /**
  * function used to print the menu for each type of file, acc to POSIX flags
  */
@@ -129,8 +156,7 @@ void accesOther(struct stat buf)
  */
 void option_link(char *link_path, struct stat buf, int length, char *option_s)
 {
-    pid_t pid;
-    pid = fork();
+
     for (int i = 1; i < length; i++)
     {
         if (option_s[i] == 'n')
@@ -195,8 +221,7 @@ void option_link(char *link_path, struct stat buf, int length, char *option_s)
 
 void option_dir(char *dir_path, struct stat buf, int length, char *option_s)
 {
-    pid_t pid;
-    pid = fork();
+
     for (int i = 1; i < length; i++)
     {
         if (option_s[i] == 'n')
@@ -246,67 +271,65 @@ void option_dir(char *dir_path, struct stat buf, int length, char *option_s)
 
 void option_reg(char *filepath, struct stat buf, int length, char *option_s)
 {
-    pid_t pid;
-    pid = fork();
-    if (pid == 0)
+    // char option
+    for (int i = 1; i < length; i++)
     {
-        for (int i = 1; i < length; i++)
+        printf("\n optiune : %c\n", option_s[i]);
+        if (option_s[i] == 'n')
         {
-            if (option_s[i] == 'n')
-            {
-                printf("Name of file: %s\n", basename(filepath));
-            }
-
-            if (option_s[i] == 'd')
-            {
-                long size;
-                size = buf.st_size;
-                printf("Size of file: %ld bytes\n", size);
-            }
-
-            if (option_s[i] == 'h')
-            {
-                int count;
-                count = buf.st_nlink;
-                printf("Hard link count:%d\n", count);
-            }
-
-            if (option_s[i] == 'm')
-            {
-                struct timespec ts;
-                timespec_get(&ts, buf.st_mtime);
-                printf("Last modification time: %ld.%.9ld\n", ts.tv_sec, ts.tv_nsec);
-            }
-
-            if (option_s[i] == 'a')
-            {
-                printf("Access rights:\n");
-                printf("\nUser:\n\n");
-                accesUser(buf);
-                printf("\nGroup:\n\n");
-                accesGroup(buf);
-                printf("\nOther:\n\n");
-                accesOther(buf);
-            }
-
-            if (option_s[i] == 'l')
-            {
-                char link_name[1024];
-
-                printf("Please give the link name: \nSTANDARD INPUT:");
-                scanf("%s", link_name);
-
-                int retVal = symlink(filepath, link_name);
-                if (retVal == -1)
-                {
-                    perror(strerror(errno));
-                    exit(errno);
-                }
-                printf("STANDARD OUTPUT: Link has been created!\n");
-            }
+            printf("Name of file: %s\n", basename(filepath));
         }
-        exit(8);
+
+        if (option_s[i] == 'd')
+        {
+            long size;
+            size = buf.st_size;
+            printf("Size of file: %ld bytes\n", size);
+        }
+
+        if (option_s[i] == 'h')
+        {
+            int count;
+            count = buf.st_nlink;
+            printf("Hard link count:%d\n", count);
+        }
+
+        if (option_s[i] == 'm')
+        {
+            struct timespec ts;
+            timespec_get(&ts, buf.st_mtime);
+            printf("Last modification time: %ld.%.9ld\n", ts.tv_sec, ts.tv_nsec);
+        }
+
+        if (option_s[i] == 'a')
+        {
+            printf("Access rights:\n");
+            printf("\nUser:\n\n");
+            accesUser(buf);
+            printf("\nGroup:\n\n");
+            accesGroup(buf);
+            printf("\nOther:\n\n");
+            accesOther(buf);
+        }
+
+        if (option_s[i] == 'l')
+        {
+            char link_name[1024];
+
+            printf("Please give the link name: \nSTANDARD INPUT:");
+            scanf("%s", link_name);
+
+            int retVal = symlink(filepath, link_name);
+            if (retVal == -1)
+            {
+                perror(strerror(errno));
+                exit(errno);
+            }
+            printf("STANDARD OUTPUT: Link has been created!\n");
+        }
     }
+
+    exit(8);
 }
 void readOptions()
 {
@@ -368,31 +391,210 @@ void checkOptionStringLink()
 void option(struct stat buf, char *filepath)
 {
     /**
-     * check option string for regular files
+     * create 1st child process to handle the op for args
      */
-    if (S_ISREG(buf.st_mode))
+    pid = fork();
+    if (pid < 0)
     {
-        checkOptionStringReg();
-        option_reg(filepath, buf, lengthOfOptionString_u, option_string_ac);
-        return;
+        perror(strerror(errno));
+        exit(errno);
     }
-    /**
-     * check option string for directories
-     */
-    if (S_ISDIR(buf.st_mode))
+    // if we are in the first child process
+    if (pid == 0)
     {
-        checkOptionStringDir();
-        option_dir(filepath, buf, lengthOfOptionString_u, option_string_ac);
-        return;
+        /**
+         * check option string for regular files
+         */
+        if (S_ISREG(buf.st_mode))
+        {
+            checkOptionStringReg();
+            option_reg(filepath, buf, lengthOfOptionString_u, option_string_ac);
+            return;
+        }
+        /**
+         * check option string for directories
+         */
+        if (S_ISDIR(buf.st_mode))
+        {
+            checkOptionStringDir();
+            option_dir(filepath, buf, lengthOfOptionString_u, option_string_ac);
+            return;
+        }
+        /**
+         * check option string for links file
+         */
+        if (S_ISLNK(buf.st_mode))
+        {
+            checkOptionStringLink();
+            option_link(filepath, buf, lengthOfOptionString_u, option_string_ac);
+            return;
+        }
+        exit(EXIT_SUCCESS);
     }
-    /**
-     * check option string for links file
-     */
-    if (S_ISLNK(buf.st_mode))
+    //?? else if (pid > 0)
+    // {
+    //     wait_kids();
+    // }
+}
+
+void calc_score(char *filepath)
+{
+    // int pfd[2];
+    FILE *stream;
+    char buff[1024] = "";
+
+    close(pfd[1]);
+    int byte_read = read(pfd[0], buff, 1024);
+    if (byte_read <= 0)
     {
-        checkOptionStringLink();
-        option_link(filepath, buf, lengthOfOptionString_u, option_string_ac);
-        return;
+        printf("error no bytes read from script");
+        exit(-1);
+    }
+
+    printf("am citit %s \n", buff);
+
+    char *token = strtok(buff, " ");
+    char *first_word = token;
+    token = strtok(NULL, " ");
+    char *second_word = token;
+    errors = atoi(first_word);
+    warnings = atoi(second_word);
+
+    if (errors == 0 && warnings == 0)
+    {
+        score = 10;
+    }
+
+    if (errors >= 1)
+    {
+        score = 1;
+    }
+
+    if (errors == 0 && warnings > 10)
+    {
+        score = 2;
+    }
+
+    if (errors == 0 && warnings <= 10)
+    {
+        score = 2 + 8 * (10 - warnings) / 10;
+    }
+
+    int fd;
+
+    fd = open("grades.txt", O_RDWR | O_CREAT, S_IRWXU);
+    if (fd == -1)
+    {
+        perror(strerror(errno));
+        exit(errno);
+    }
+
+    char filename[1024];
+    strcpy(filename, basename(filepath));
+
+    char score_string[3];
+    if (score < 10)
+    {
+        score_string[0] = score + '0';
+    }
+    else
+    {
+        score_string[0] = score / 10 + '0';
+        score_string[1] = score % 10 + '0';
+    }
+
+    char output[1050];
+    strcpy(output, filename);
+    strcat(output, ":");
+    strcat(output, score_string);
+    strcat(output, "\n\0");
+
+    int check;
+    check = write(fd, output, strlen(output));
+    if (check == -1)
+    {
+        perror(strerror(errno));
+        exit(errno);
+    }
+    close(fd);
+    close(pfd[0]);
+}
+void create_file(char *filepath, struct stat buf)
+{
+    if (pid2 == 0)
+    {
+        char new_filename[1050], new_filepath[1050];
+
+        strcpy(new_filename, basename(filepath));
+        strcat(new_filename, "_file.txt");
+
+        strcpy(new_filepath, filepath);
+        strcat(new_filepath, "/");
+        strcat(new_filepath, new_filename);
+
+        int check;
+        check = execlp("touch", "touch", new_filepath, NULL);
+        if (check == -1)
+        {
+            perror(strerror(errno));
+            exit(errno);
+        }
+        exit(EXIT_SUCCESS);
+    }
+}
+void change_permissions(char *filepath, struct stat buf)
+{
+    if (pid2 == 0)
+    {
+        int check;
+
+        check = execlp("chmod", "chmod", "u+rwx,g+rw-x,o-rwx", filepath, NULL);
+        if (check == -1)
+        {
+            perror(strerror(errno));
+            exit(errno);
+        }
+
+        exit(EXIT_SUCCESS);
+    }
+    /*
+    else if(pid2>0){
+        wait_for_children();
+    }*/
+}
+void check_extension(char *filepath, struct stat buf)
+{
+    // int pfd[2];
+    int check;
+    char filename[1024];
+    strcpy(filename, basename(filepath));
+
+    if (filename[strlen(filename) - 1] == 'c' && filename[strlen(filename) - 2] == '.') // c ext
+    {
+
+        close(pfd[0]);
+        dup2(pfd[1], 1);
+        check = execlp("bash", "bash", "script_count.sh", filepath, NULL);
+        if (check == -1)
+        {
+            perror(strerror(errno));
+            exit(errno);
+        }
+        exit(EXIT_SUCCESS);
+    }
+
+    else // not a c ext
+    {
+
+        printf("The number of lines in this file is:\n");
+        check = execlp("wc", "wc", "-l", filepath, NULL);
+
+        if (check == -1)
+        {
+            perror(strerror(errno));
+            exit(errno);
+        }
+        exit(EXIT_SUCCESS);
     }
 }
 /**
@@ -404,14 +606,11 @@ int main(int argc, char *argv[])
     /**
      * error handling for wrong input of arguments
      */
-    pid_t pid, w;
-    int wstatus;
     if (argc < 2)
     {
         printf("not enough argcs\n");
         exit(-1);
     }
-
     for (int i = 1; i < argc; i++)
     {
 
@@ -429,17 +628,47 @@ int main(int argc, char *argv[])
             exit(errno);
         }
         type_menu(buf);
-        option(buf, filepath);
+        readOptions();
+        option(buf, filepath); //-here will be created 1st new child processes
+        /**
+         * check we will wait for children in parent process
+         */
 
-        if (pid > 0)
+        /**
+         * create sec child process
+         */
+        if (pipe(pfd) < 0)
         {
-            printf("this is the parent process\n");
-            w = wait(&wstatus);
-            if (WIFEXITED(wstatus))
-            {
-                printf("process with pid %d, exited, status = %d\n", w, WEXITSTATUS(wstatus));
-            }
+            perror(strerror(errno));
+            exit(errno);
         }
+        pid2 = fork();
+        if (pid2 < 0)
+        {
+            perror(strerror(errno));
+            exit(errno);
+        }
+        if (pid2 == 0)
+        {
+            if (S_ISREG(buf.st_mode))
+            {
+                check_extension(filepath, buf);
+            }
+
+            else if (S_ISDIR(buf.st_mode))
+            {
+                create_file(filepath, buf);
+            }
+
+            else if (S_ISLNK(buf.st_mode))
+            {
+                change_permissions(filepath, buf);
+            }
+            exit(EXIT_SUCCESS);
+        }
+
+        wait_kids();
+        calc_score(filepath);
     }
 
     return 0;
