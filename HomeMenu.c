@@ -431,16 +431,10 @@ void option(struct stat buf, char *filepath)
         }
         exit(EXIT_SUCCESS);
     }
-    //?? else if (pid > 0)
-    // {
-    //     wait_kids();
-    // }
 }
 
 void calc_score(char *filepath)
 {
-    // int pfd[2];
-    FILE *stream;
     char buff[1024] = "";
 
     close(pfd[1]);
@@ -450,8 +444,6 @@ void calc_score(char *filepath)
         printf("error no bytes read from script");
         exit(-1);
     }
-
-    printf("am citit %s \n", buff);
 
     char *token = strtok(buff, " ");
     char *first_word = token;
@@ -482,7 +474,7 @@ void calc_score(char *filepath)
 
     int fd;
 
-    fd = open("grades.txt", O_RDWR | O_CREAT, S_IRWXU);
+    fd = open("grades.txt", O_RDWR | O_APPEND | O_CREAT, S_IRWXU);
     if (fd == -1)
     {
         perror(strerror(errno));
@@ -521,57 +513,44 @@ void calc_score(char *filepath)
 }
 void create_file(char *filepath, struct stat buf)
 {
-    if (pid2 == 0)
+    char new_filename[1050], new_filepath[1050];
+
+    strcpy(new_filename, basename(filepath));
+    strcat(new_filename, "_file.txt");
+
+    strcpy(new_filepath, filepath);
+    strcat(new_filepath, "/");
+    strcat(new_filepath, new_filename);
+
+    int check;
+    check = execlp("touch", "touch", new_filepath, NULL);
+    if (check == -1)
     {
-        char new_filename[1050], new_filepath[1050];
-
-        strcpy(new_filename, basename(filepath));
-        strcat(new_filename, "_file.txt");
-
-        strcpy(new_filepath, filepath);
-        strcat(new_filepath, "/");
-        strcat(new_filepath, new_filename);
-
-        int check;
-        check = execlp("touch", "touch", new_filepath, NULL);
-        if (check == -1)
-        {
-            perror(strerror(errno));
-            exit(errno);
-        }
-        exit(EXIT_SUCCESS);
+        perror(strerror(errno));
+        exit(errno);
     }
+    exit(EXIT_SUCCESS);
 }
 void change_permissions(char *filepath, struct stat buf)
 {
-    if (pid2 == 0)
+    int check;
+    check = execlp("chmod", "chmod", "u+rwx,g+rw-x,o-rwx", filepath, NULL);
+    if (check == -1)
     {
-        int check;
-
-        check = execlp("chmod", "chmod", "u+rwx,g+rw-x,o-rwx", filepath, NULL);
-        if (check == -1)
-        {
-            perror(strerror(errno));
-            exit(errno);
-        }
-
-        exit(EXIT_SUCCESS);
+        perror(strerror(errno));
+        exit(errno);
     }
-    /*
-    else if(pid2>0){
-        wait_for_children();
-    }*/
+
+    exit(EXIT_SUCCESS);
 }
 void check_extension(char *filepath, struct stat buf)
 {
-    // int pfd[2];
     int check;
     char filename[1024];
     strcpy(filename, basename(filepath));
 
     if (filename[strlen(filename) - 1] == 'c' && filename[strlen(filename) - 2] == '.') // c ext
     {
-
         close(pfd[0]);
         dup2(pfd[1], 1);
         check = execlp("bash", "bash", "script_count.sh", filepath, NULL);
@@ -635,7 +614,7 @@ int main(int argc, char *argv[])
          */
 
         /**
-         * create sec child process
+         * create sec child process and pipe to com between parent process and child process
          */
         if (pipe(pfd) < 0)
         {
@@ -667,8 +646,16 @@ int main(int argc, char *argv[])
             exit(EXIT_SUCCESS);
         }
 
-        wait_kids();
-        calc_score(filepath);
+        if (pid2 > 0)
+        {
+            wait_kids();
+            char filename[1024];
+            strcpy(filename, basename(filepath));
+            if (S_ISREG(buf.st_mode) && (filename[strlen(filename) - 1] == 'c' && filename[strlen(filename) - 2] == '.'))
+            {
+                calc_score(filepath);
+            }
+        }
     }
 
     return 0;
